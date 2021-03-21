@@ -76,11 +76,21 @@ elif [ "$command" == "list-methods" ]; then
     else # A service code name was given
         servicePackageName="$(GetServicePackageName "$l_serviceCodeName")"
     fi
-    GetMethodSignaturesForPackage "${servicePackageName}"
+    methodSignatures="$(GetMethodSignaturesForPackage "${servicePackageName}")"
+    if test -t 1; then
+        echo -e "$(AidlSyntaxHighlight "${methodSignatures}")"
+    else
+        echo "${methodSignatures}"
+    fi
 elif [ "$command" == "method-signature" ]; then
     methodName=$(echo "$commandParam1" | rev | cut -d'.' -f 1 | rev)
     servicePackageName=$(echo "$commandParam1" | rev | cut -d"." -f2-  | rev)
-    GetMethodSignature "${servicePackageName}" "${methodName}"
+    methodSignature="$(GetMethodSignature "${servicePackageName}" "${methodName}")"
+    if test -t 1; then
+        echo -e "$(AidlSyntaxHighlight "${methodSignature}")"
+    else
+        echo "${methodSignature}"
+    fi
 elif [ "$command" == "download" ]; then
     DownloadSourceFiles "${g_aidlFileList}" "${g_aidlFileCache}"
 else

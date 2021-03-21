@@ -40,7 +40,7 @@ which would have required you to understand how to get values like `65` or `s16`
 ## Disclaimer
 **Use at own risk!**
 - May call incorrect service methods on ROMs that have added/removed methods to/from the aidl files as they appear in AOSP. I recommend using LineageOS to reduce that risk. If you use another open source ROM, we can probably add support for detecting that by scanning its source code, just like I've done it for LineageOS.
-- Only tested on amd64 based devices.
+- Only tested with arm64 based devices.
 
 ## How to install (in Termux)
 - Download the deb package from the [latest release](https://github.com/T-vK/android-svc/releases).

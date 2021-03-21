@@ -5,6 +5,12 @@ export g_shellType=""
 export g_adbSerial=""
 export g_aidlFileCache="./.android-svc-cache"
 
+export g_blue=$(printf '%s\n' '\033[0;34m' | sed -e 's/[\/&]/\\&/g')
+export g_red=$(printf '%s\n' '\033[0;31m' | sed -e 's/[\/&]/\\&/g')
+export g_green=$(printf '%s\n' '\033[0;32m' | sed -e 's/[\/&]/\\&/g')
+export g_yellow=$(printf '%s\n' '\033[0;33m' | sed -e 's/[\/&]/\\&/g')
+export g_nc=$(printf '%s\n' '\033[0m' | sed -e 's/[\/&]/\\&/g') # no color
+
 Init () {
     g_repoUrl="${1-}"
     if ! [ -n "$g_repoUrl" ]; then
@@ -23,6 +29,7 @@ DownloadSourceFiles () {
     l_sourceFileList="${1-}"; l_targetDir="${2-}"
     [ -n "$l_sourceFileList" ] || Exit 1 "Source file list was not provided in DownloadSourceFiles"
     [ -n "$l_targetDir" ] || Exit 1 "Target directory was not provided in DownloadSourceFiles"
+    [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in DownloadSourceFiles (Did you call Init first?)"
 
     l_targetDir="${l_targetDir}/$(GetRomName)"
 
@@ -197,7 +204,9 @@ GetMethodSignaturesForPackage () {
     -e '/^[^;]*$/{$!N}' \
     -e '$d' \
     -e 's/\(^\|\n\)[[:space:]]*\|\([[:space:]]\)\{2,\}/\2/g' | \
-    sed -e ':x;N;s/\([^;]\)\n/\1/;bx'
+    sed -e ':x;N;s/\([^;]\)\n/\1/;bx' |
+    sed -e "s/ ,/, /g" |
+    sed -E "s/,([^[:space:]])/, \1/g"
 }
 
 GetMethodIndex () {
@@ -244,25 +253,18 @@ GetSourceRepoUrl () {
 GetSourceFile () {
     l_file="${1-}"
     [ -n "$l_file" ] || Exit 1 "File was not provided in GetSourceFile"
+    [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in GetSourceFile (Did you call Init first?)"
     wget -qO - "$g_repoUrl/$l_file"
 }
 
 GetServiceAidlFileNames () {
-    l_androidVersion="$(GetAndroidVersion)"
-    l_baseVersion="${l_androidVersion%%.*}"
-    [ "$l_baseVersion" -eq "$l_baseVersion" ] 2>/dev/null || Exit 1 "Could not parse number from Android version in GetAllServices"
-    if [ "$l_baseVersion" -gt 8 ]; then
-        l_file='Android.bp'
-    else
-        l_file='Android.mk'
-    fi
-    l_rom="$(GetRomName)"
-    l_fullPathToFile="${g_aidlFileCache}/${l_rom}/${l_file}"
-    if ! [ -f "${l_fullPathToFile}" ]; then
-        mkdir -p "${l_fullPathToFile%/*}"
-        GetSourceFile "$l_file" > "${l_fullPathToFile}"
-    fi
-    cat "${l_fullPathToFile}" | tr -d ' \\\t,"' | sed -e '/\.aidl$/!d' -e '/^gen:/d' | sort -u
+    [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in GetServiceAidlFileNames (Did you call Init first?)"
+    l_githubUser="$(echo "$g_repoUrl" | cut -d'/' -f 4)"
+    l_githubProject="$(echo "$g_repoUrl" | cut -d'/' -f 5)"
+    l_branch="$(echo "$g_repoUrl" | cut -d'/' -f 6)"
+    l_recursiveFileTreeUrl="https://api.github.com/repos/${l_githubUser}/${l_githubProject}/git/trees/${l_branch}?recursive=1"
+    # Extract all .aidl file paths from the recursive file tree:
+    curl -s "${l_recursiveFileTreeUrl}" | jq -r '.tree|map(.path|select(test("\\.aidl")))[]' | sort -u
 }
 
 ConvertDataType () {
@@ -346,6 +348,35 @@ ParseParcel () {
     fi
 }
 
+AidlSyntaxHighlight () {
+    l_code="${1-}"
+    [ -n "$l_code" ] || Exit 1 "No code was provided in AidlSyntaxHighlight"
+
+    l_codeInput="$(echo "${l_code}" | sed -e "s/()/(a a)/g")"
+
+    l_highlightedCode="$(echo -e "${l_codeInput}" |
+    sed '
+        s/^ *\([^(,)]\+\) \+\([^ (,)]\+\)\([(,)]\)\(.*\)/\4\n{FUNCRET}\1{END} {FUNCNAME}\2{END}{SEP}\3{END}/;
+        h;
+        :a; {
+            /^ *\([^(,)]\+\) \+\([^ (,)]\+\)\([(,)]\)\([^\n]*\)\n\(.*\)$/{
+                s//\4\n\5{PARTYPE}\1{END} {PARNAME}\2{END}{SEP}\3{END}/
+                b a
+            }
+        }
+        s/^;\(.*\)/\1{SEP};{END}/
+    ' | sed -e '/^$/d' \
+            -e "s/,/, /g" \
+            -e "s/{PARTYPE}a{END} {PARNAME}a{END}//g" \
+            -e "s/{FUNCRET}/${g_blue}/g" \
+            -e "s/{FUNCNAME}/${g_red}/g" \
+            -e "s/{PARTYPE}/${g_blue}/g" \
+            -e "s/{PARNAME}/${g_green}/g" \
+            -e "s/{SEP}/${g_yellow}/g" \
+            -e "s/{END}/${g_nc}/g")"
+    echo "${l_highlightedCode}"
+}
+
 SetShellType () {
     g_shellType="${1-}"
     [ -n "$g_shellType" ] || Exit 1 "Shell type was not provided in SetShellType"
@@ -385,4 +416,4 @@ Exit () {
     fi
 }
 
-AssertExecutablesAreAvailable 'bash' 'git' 'wget' 'tr' 'sed' 'cut' 'grep' 'head' 'tail' 'printf' 'cat' 'sort' 'rev' 'xxd'
+AssertExecutablesAreAvailable 'bash' 'git' 'wget' 'tr' 'sed' 'cut' 'grep' 'head' 'tail' 'printf' 'cat' 'sort' 'rev' 'xxd' 'jq'

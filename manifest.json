@@ -1,11 +1,11 @@
 {
   "name": "android-svc",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "homepage": "https://github.com/T-vK/android-svc/",
   "maintainer": "@T-vK",
   "description": "Easy to use Android service wrapper",
   "arch": "all",
-  "depends": ["bash", "git", "wget", "sed", "grep", "coreutils", "util-linux", "vim"],
+  "depends": ["bash", "git", "wget", "sed", "grep", "coreutils", "util-linux", "vim", "jq"],
   "files" :{
     "android-svc.sh": "bin/android-svc",
     "android-svc-lib.sh": "lib/android-svc-lib.sh"
