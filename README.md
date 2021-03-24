@@ -40,7 +40,7 @@ which would have required you to understand how to get values like `65` or `s16`
 ## Disclaimer
 **Use at own risk!**
 - May call incorrect service methods on ROMs that have added/removed methods to/from the aidl files as they appear in AOSP. I recommend using LineageOS to reduce that risk. If you use another open source ROM, we can probably add support for detecting that by scanning its source code, just like I've done it for LineageOS.
-- Only tested with arm64 based devices.
+- Only tested with ARM64-based devices.
 
 ## How to install (in Termux)
 - Download the deb package from the [latest release](https://github.com/T-vK/android-svc/releases).
@@ -171,7 +171,8 @@ int getRingerModeInternal();
 boolean isValidRingerMode(int ringerMode);
 void setVibrateSetting(int vibrateType, int vibrateSetting);
 int getVibrateSetting(int vibrateType);
-boolean shouldVibrate(int vibrateType);
+boolean shouldVibrate(int vibrateType); ROM, we can probably add support for detecting that by scanning its source code, just like I've done it for LineageOS.
+- Only tested with arm6
 void setMode(int mode, IBinder cb, String callingPackage);
 int getMode();
 oneway void playSoundEffect(int effectType);
@@ -232,8 +233,32 @@ oneway void unregisterAudioServerStateDispatcher(IAudioServerStateDispatcher asd
 boolean isAudioServerRunning();
 ```
 
-## Interesting code to further inspect in order to find the aidl files for packages that have missing data in `serivce list`
+## Further information
+In order to add support for certain binary data types, it will be necessary to create a custom build of Android's service utility.  
+The official instructions on how to build that utility are incredibly time consuming and require downloading more than 600 GIGABYTES of source code. (If you read this in 2023 it has probably grown to >1TB of data.) 
+I have thus been working on a minimal setup only requiring a couple of MB of storage and ended up with this:
+
+``` Bash
+# Download required source code
+git clone https://android.googlesource.com/platform/superproject
+cd superproject
+git submodule init
+git submodule update frameworks/native
+git submodule update system/libbase
+git submodule update system/core
+git submodule update system/logging
+git submodule update bionic
+# Set required include directories in CPATH
+export CPATH="./frameworks/native/include:./system/libbase/include:./system/core/libcutils/include:./system/core/libutils/include:./system/logging/liblog/include:./system/core/libsystem/include:./frameworks/native/libs/binder/include:./bionic/libc/include"
+# Build
+g++ -DXP_UNIX -Wall -Werror -o service ./frameworks/native/cmds/service/service.cpp
+```
+
+(I'm not sure on how to cross compile yet.)
+
+### Interesting code to further inspect in order to find the aidl files for packages that have missing data in `serivce list`
 (This is just a note for me)
+
  - https://github.com/aosp-mirror/platform_frameworks_base/blob/a4ddee215e41ea232340c14ef92d6e9f290e5174/core/java/android/content/Context.java#L4056
  - https://github.com/aosp-mirror/platform_frameworks_base/blob/master/media/java/android/media/IAudioService.aidl
  - https://android.googlesource.com/platform/frameworks/native/+/android-8.0.0_r36/services/audiomanager/IAudioManager.cpp
