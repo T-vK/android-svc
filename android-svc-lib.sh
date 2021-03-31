@@ -305,7 +305,7 @@ GetParcelDataAsHex () {
     l_parcel="${1-}"
     [ -n "$l_parcel" ] || Exit 1 "Parcel not provided in GetParcelDataAsHex"
     if [ "$(echo "$l_parcel" | head -1)" == "Result: Parcel(" ]; then
-        l_parcelHexData="$(echo "$l_parcel" | grep '  0x' | tr -d ' ' | cut -d':' -f2- | cut -d"'" -f1 | tr -d '\n')"
+        l_parcelHexData="$(echo "$l_parcel" | grep 0x | cut -d: -f2- | cut -d\' -f1 | tr -d [:space:])"
     else
         l_parcelHexData="$(echo "$l_parcel" | tr -d ' ' | cut -d'(' -f2- | cut -d"'" -f1 | tr -d '\n')"
     fi
@@ -330,14 +330,7 @@ ParseParcel () {
     elif [ "$l_dataType" == "float" ]; then
         echo "$((0x${l_hexData}))"
     elif [ "$l_dataType" == "String" ]; then
-        l_hexData16Bit="$(echo "$l_hexData" | sed -e 's/.\{8\}/&\n/g')"
-        l_returnValue=""
-        while IFS= read -r l_hexValue; do
-            l_char2="$(echo -n "${l_hexValue:2:2}" | xxd -r -p | tr -d '\0')"
-            l_char1="$(echo -n "${l_hexValue:6:2}" | xxd -r -p | tr -d '\0')"
-            l_returnValue="${l_returnValue}${l_char1}${l_char2}"
-        done <<< "$l_hexData16Bit"
-        echo "$l_returnValue"
+        echo "$l_hexData" | fold -w8 | sed -E 's/(.{2})(.{2})(.{2})(.{2})/\4\3\2\1/' | xxd -r -p | tr -d '\0'
     elif [ "$l_dataType" == "void" ]; then
         : # Do nothing
     else
