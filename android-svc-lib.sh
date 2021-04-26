@@ -11,6 +11,12 @@ export g_green=$(printf '%s\n' '\033[0;32m' | sed -e 's/[\/&]/\\&/g')
 export g_yellow=$(printf '%s\n' '\033[0;33m' | sed -e 's/[\/&]/\\&/g')
 export g_nc=$(printf '%s\n' '\033[0m' | sed -e 's/[\/&]/\\&/g') # no color
 
+###
+# Init g_repoUrl value
+# GLOBALS:
+#  g_repoUrl will be filled by this method, and contains an url from https://github.com/aosp-mirror/platform_frameworks_base repository
+# RETURN:
+#   nothing or exit the script with an error message
 Init () {
     g_repoUrl="${1-}"
     if ! [ -n "$g_repoUrl" ]; then
@@ -46,6 +52,12 @@ DownloadSourceFiles () {
     echo "$g_repoUrl" > "${l_targetDir}/REPO_URL"
 }
 
+###
+# Convert code like call to an service call syntax with argument
+# ARGUMENTS:
+#  a call like 'com.android.internal.telephony.ITelephony.dial(\"555-0199\")'"
+# RETURN:
+#  converted call ready to be pass to android shell
 ConvertServiceCallToShellCommand () {
     l_serviceCall="${1-}"
     [ -n "$l_serviceCall" ] || Exit 1 "Service call not provided in CallServiceMethod"
@@ -149,12 +161,22 @@ CallServiceMethod () {
     ParseParcel "${l_parcel}" "${l_returnDataType}"
 }
 
+###
+# List available service package names from current or connected android devices
+# OUTPUTS:
+#  services package names list
 GetServicePackageNames () {
     l_packageNames="$(AndroidShell 'service list' | grep -oP '(?<=\[).+(?=\])')"
     [ -n "$l_packageNames" ] || Exit 1 "Unable to find services in GetServicePackageNames"
     echo "$l_packageNames"
 }
 
+###
+# Get service package name that implement a service name.
+# ARGUMENTS:
+#  a service name like: input, gpu, display, batterystats...
+# OUTPUTS:
+#  a service package name
 GetServicePackageName () {
     l_service="${1-}"
     [ -n "$l_service" ] || Exit 1 "Service name was not provided in GetServicePackageName"
@@ -163,6 +185,12 @@ GetServicePackageName () {
     echo "$l_packageName"
 }
 
+###
+# get service name from a service package name.
+# ARGUMENTS:
+#  a service name like: android.app.IUiModeManager, android.os.ISystemConfig, android.os.IPermissionController...
+# OUTPUTS:
+#  a service name like: overlay, package, power....
 GetServiceCodeName () {
     l_packageName="${1-}"
     [ -n "$l_packageName" ] || Exit 1 "Package name was not provided in GetServiceCodeName"
@@ -182,6 +210,17 @@ GetMethodSignature () {
     echo "${l_methodSignature}"
 }
 
+###
+# List methods from a service package name.
+# the aidl file will be retieves from https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android-${version}
+# GLOBALS:
+#  g_repoUrl filled by then Init method
+#  g_aidlFileList list of aidl files filed by Init method
+#  g_cacheDir if offline mode
+# ARGUMENTS:
+#  a service name service name like: android.app.IUiModeManager, android.os.ISystemConfig, android.os.IPermissionController...
+# OUTPUTS:
+#  list of aidl signatures.
 GetMethodSignaturesForPackage () {
     l_packageName="${1-}"
     [ -n "$l_packageName" ] || Exit 1 "Package name was not provided in GetMethodSignaturesForPackage"
@@ -250,6 +289,14 @@ GetSourceRepoUrl () {
     echo "$l_repoUrl"
 }
 
+###
+# Get file content from repo
+# GLOBALS:
+#  g_repoUrl filled by then Init method
+# ARGUMENTS:
+#  $1 file to download
+# RETURN:
+#  File content
 GetSourceFile () {
     l_file="${1-}"
     [ -n "$l_file" ] || Exit 1 "File was not provided in GetSourceFile"
@@ -257,16 +304,32 @@ GetSourceFile () {
     wget -qO - "$g_repoUrl/$l_file"
 }
 
+###
+# list all aidl files
+# GLOBALS:
+#  g_repoUrl filled by then Init method contains an url like https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android-11.0.0_r35
+# OUTPUTS:
+#  path to all aidl files in the current branch
 GetServiceAidlFileNames () {
     [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in GetServiceAidlFileNames (Did you call Init first?)"
+    # l_githubUser should contains a gitHub user
     l_githubUser="$(echo "$g_repoUrl" | cut -d'/' -f 4)"
+    # l_githubProject should contains the gitHub project name
     l_githubProject="$(echo "$g_repoUrl" | cut -d'/' -f 5)"
+    # l_branch should contains android-XX.Y.Z-revision
     l_branch="$(echo "$g_repoUrl" | cut -d'/' -f 6)"
+    # build github api to list all files in a branch
     l_recursiveFileTreeUrl="https://api.github.com/repos/${l_githubUser}/${l_githubProject}/git/trees/${l_branch}?recursive=1"
     # Extract all .aidl file paths from the recursive file tree:
     curl -s "${l_recursiveFileTreeUrl}" | jq -r '.tree|map(.path|select(test("\\.aidl")))[]' | sort -u
 }
 
+###
+# get android service datatype from aidl datatype.
+# ARGUMENTS:
+#  $1 aidl parameter datatype (int, long, float...)
+# RETURN:
+#  android service call datatype (i32, i64, f...)
 ConvertDataType () {
     # Note: I don't know if this conversion (especially for different architectures like arm64) would always be accurate!
     # Note 2: I have no clue how you could pass or convert Arrays, Lists, Objects, Maps, etc.
@@ -301,6 +364,12 @@ ConvertDataType () {
     fi
 }
 
+###
+# Extract data from Parcel.
+# ARGUMENTS:
+#  $1 parcel formated by service call (Hexa + text)
+# RETURN:
+#  parcel hexadecimal data.
 GetParcelDataAsHex () {
     l_parcel="${1-}"
     [ -n "$l_parcel" ] || Exit 1 "Parcel not provided in GetParcelDataAsHex"
@@ -312,6 +381,13 @@ GetParcelDataAsHex () {
     echo "$l_parcelHexData"
 }
 
+###
+# TODO
+# ARGUMENTS:
+#  $1 parcel formated by service call (Hexa + text)
+#  $2 expected returned type (boolean, int, float, String, void)
+# RETURN:
+#  
 ParseParcel () {
     l_parcel="${1-}"; l_dataType="${2-}"
     [ -n "$l_parcel" ] || Exit 1 "Parcel not provided in ParseParcel"
@@ -341,6 +417,14 @@ ParseParcel () {
     fi
 }
 
+###
+# TODO
+# GLOBALS:
+#  
+# ARGUMENTS:
+#  $1 
+# RETURN:
+#  
 AidlSyntaxHighlight () {
     l_code="${1-}"
     [ -n "$l_code" ] || Exit 1 "No code was provided in AidlSyntaxHighlight"
@@ -370,6 +454,16 @@ AidlSyntaxHighlight () {
     echo "${l_highlightedCode}"
 }
 
+###
+# Set binary name to call to access android device.
+# get first android serial.
+# GLOBALS:
+#  g_shellType "adb" or "" for on device call
+#  g_adbSerial is modified to contains android serial id
+# ARGUMENTS:
+#  $1 adb
+# RETURN:
+#  nothing or exit the script with an error message 
 SetShellType () {
     g_shellType="${1-}"
     [ -n "$g_shellType" ] || Exit 1 "Shell type was not provided in SetShellType"
@@ -378,11 +472,26 @@ SetShellType () {
     fi
 }
 
+###
+# Select a specific android device by serial id
+# ARGUMENTS:
+#  $1 serial
+# RETURN:
+#  nothing or exit the script with an error message 
 SetAdbDevice () {
     g_adbSerial="${1-}"
     [ -n "$g_adbSerial" ] || Exit 1 "Adb device was not provided in SetAdbDevice"
 }
 
+###
+# Execute an adb shell command.
+# GLOBALS:
+#  g_shellType defined by SetShellType, can be adb or empty for on self device call
+#  g_adbSerial android serial number defined by SetShellType or SetShellType
+# ARGUMENTS:
+#  $1 command to execute
+# RETURN:
+#  adb shell result
 AndroidShell () {
     if [ "$g_shellType" == "adb" ]; then
         adb ${g_adbSerial:+-s $g_adbSerial} shell -T -x "$1" | tr -d '\r'
@@ -391,6 +500,12 @@ AndroidShell () {
     fi
 }
 
+###
+# Assert needed binary are availables.
+# ARGUMENTS:
+#  $# list of needed binary
+# RETURN:
+#  nothing or exit the script with an error message 
 AssertExecutablesAreAvailable () {
     l_bins=
     for b in "$@"; do [ -n "$(command -v "$b" 2>/dev/null)" ] || l_bins="${l_bins-}$b "; done
@@ -399,6 +514,13 @@ AssertExecutablesAreAvailable () {
     Exit 1 "Exiting due to insufficient dependencies"
 }
 
+###
+# Exit script with the given code and error message.
+# ARGUMENTS:
+#  [$1] error code (Optional)
+#  [$2] error message (Optional)
+# RETURN:
+#  Exit the script
 Exit () {
     if [ $# -ge 1 ] && [ -n "$1" ] && [ "$1" -eq "$1" ] 2>/dev/null; then exitCode="$1"; shift; fi
     if [ $# -ge 1 ] ; then printf '%s\n' "$@" 1>&2; fi
