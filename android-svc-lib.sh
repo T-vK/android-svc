@@ -230,6 +230,7 @@ GetMethodSignaturesForPackage () {
 
     l_packageFilePath="$(echo "$l_packageName" | tr '.' '/')\.aidl"
     l_servicePath="$(echo "$g_aidlFileList" | grep -m 1 "$l_packageFilePath\$")"
+
     if [ -f "$l_servicePath" ]; then
         l_serviceSource="$(cat "${g_cacheDir}/${l_servicePath}")"
     else
