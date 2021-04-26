@@ -12,9 +12,8 @@ export g_yellow=$(printf '%s\n' '\033[0;33m' | sed -e 's/[\/&]/\\&/g')
 export g_nc=$(printf '%s\n' '\033[0m' | sed -e 's/[\/&]/\\&/g') # no color
 
 ###
-# init g_repoUrl value
+# Init g_repoUrl value
 # GLOBALS:
-#  l_targetDir
 #  g_repoUrl will be filled by this method, and contains an url from https://github.com/aosp-mirror/platform_frameworks_base repository
 # RETURN:
 #   nothing or exit the script with an error message
@@ -54,11 +53,11 @@ DownloadSourceFiles () {
 }
 
 ###
-# call a service with argument on a device
+# Convert code like call to an service call syntax with argument
 # ARGUMENTS:
 #  a call like 'com.android.internal.telephony.ITelephony.dial(\"555-0199\")'"
 # RETURN:
-#  converted call ready to be pass to adb shell
+#  converted call ready to be pass to android shell
 ConvertServiceCallToShellCommand () {
     l_serviceCall="${1-}"
     [ -n "$l_serviceCall" ] || Exit 1 "Service call not provided in CallServiceMethod"
@@ -163,7 +162,7 @@ CallServiceMethod () {
 }
 
 ###
-# list available service package names from connected android devices
+# List available service package names from current or connected android devices
 # OUTPUTS:
 #  services package names list
 GetServicePackageNames () {
@@ -173,7 +172,7 @@ GetServicePackageNames () {
 }
 
 ###
-# get service package name that implement a service name.
+# Get service package name that implement a service name.
 # ARGUMENTS:
 #  a service name like: input, gpu, display, batterystats...
 # OUTPUTS:
@@ -189,7 +188,7 @@ GetServicePackageName () {
 ###
 # get service name from a service package name.
 # ARGUMENTS:
-#  a service name service name like: android.app.IUiModeManager, android.os.ISystemConfig, android.os.IPermissionController...
+#  a service name like: android.app.IUiModeManager, android.os.ISystemConfig, android.os.IPermissionController...
 # OUTPUTS:
 #  a service name like: overlay, package, power....
 GetServiceCodeName () {
@@ -313,9 +312,9 @@ GetSourceFile () {
 #  path to all aidl files in the current branch
 GetServiceAidlFileNames () {
     [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in GetServiceAidlFileNames (Did you call Init first?)"
-    # l_githubUser should contains aosp-mirror
+    # l_githubUser should contains a gitHub user
     l_githubUser="$(echo "$g_repoUrl" | cut -d'/' -f 4)"
-    # l_githubProject should contains platform_frameworks_base
+    # l_githubProject should contains the gitHub project name
     l_githubProject="$(echo "$g_repoUrl" | cut -d'/' -f 5)"
     # l_branch should contains android-XX.Y.Z-revision
     l_branch="$(echo "$g_repoUrl" | cut -d'/' -f 6)"
@@ -368,7 +367,7 @@ ConvertDataType () {
 ###
 # Extract data from Parcel.
 # ARGUMENTS:
-#  $1 parcel as return by adb (Hexa + text)
+#  $1 parcel formated by service call (Hexa + text)
 # RETURN:
 #  parcel hexadecimal data.
 GetParcelDataAsHex () {
@@ -385,8 +384,8 @@ GetParcelDataAsHex () {
 ###
 # TODO
 # ARGUMENTS:
-#  $1 parcel as return by adb (Hexa + text)
-#  $2 
+#  $1 parcel formated by service call (Hexa + text)
+#  $2 expected returned type (boolean, int, float, String, void)
 # RETURN:
 #  
 ParseParcel () {
@@ -459,7 +458,8 @@ AidlSyntaxHighlight () {
 # Set binary name to call to access android device.
 # get first android serial.
 # GLOBALS:
-#  g_shellType is modified to contains android serial id
+#  g_shellType "adb" or "" for on device call
+#  g_adbSerial is modified to contains android serial id
 # ARGUMENTS:
 #  $1 adb
 # RETURN:
@@ -486,7 +486,7 @@ SetAdbDevice () {
 ###
 # Execute an adb shell command.
 # GLOBALS:
-#  g_shellType defined by SetShellType only adb is currently supported
+#  g_shellType defined by SetShellType, can be adb or empty for on self device call
 #  g_adbSerial android serial number defined by SetShellType or SetShellType
 # ARGUMENTS:
 #  $1 command to execute
