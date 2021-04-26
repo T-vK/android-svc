@@ -306,16 +306,20 @@ GetSourceFile () {
 }
 
 ###
-# TODO
+# list all aidl files
 # GLOBALS:
-#  g_repoUrl filled by then Init method
-# RETURN:
-#  TODO
+#  g_repoUrl filled by then Init method contains an url like https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android-11.0.0_r35
+# OUTPUTS:
+#  path to all aidl files in the current branch
 GetServiceAidlFileNames () {
     [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in GetServiceAidlFileNames (Did you call Init first?)"
+    # l_githubUser should contains aosp-mirror
     l_githubUser="$(echo "$g_repoUrl" | cut -d'/' -f 4)"
+    # l_githubProject should contains platform_frameworks_base
     l_githubProject="$(echo "$g_repoUrl" | cut -d'/' -f 5)"
+    # l_branch should contains android-XX.Y.Z-revision
     l_branch="$(echo "$g_repoUrl" | cut -d'/' -f 6)"
+    # build github api to list all files in a branch
     l_recursiveFileTreeUrl="https://api.github.com/repos/${l_githubUser}/${l_githubProject}/git/trees/${l_branch}?recursive=1"
     # Extract all .aidl file paths from the recursive file tree:
     curl -s "${l_recursiveFileTreeUrl}" | jq -r '.tree|map(.path|select(test("\\.aidl")))[]' | sort -u
