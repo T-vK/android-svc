@@ -3,7 +3,7 @@ export g_repoUrl=""
 export g_aidlFileList=""
 export g_shellType=""
 export g_adbSerial=""
-export g_aidlFileCache="./.android-svc-cache"
+export g_fileCache="./.android-svc-cache"
 
 export g_blue=$(printf '%s\n' '\033[0;34m' | sed -e 's/[\/&]/\\&/g')
 export g_red=$(printf '%s\n' '\033[0;31m' | sed -e 's/[\/&]/\\&/g')
@@ -19,11 +19,16 @@ export g_nc=$(printf '%s\n' '\033[0m' | sed -e 's/[\/&]/\\&/g') # no color
 #   nothing or exit the script with an error message
 Init () {
     g_repoUrl="${1-}"
+    export g_aidlFileCache="${g_fileCache}/$(GetRomName)"
     if ! [ -n "$g_repoUrl" ]; then
-        if [ -f "${l_targetDir}/REPO_URL" ]; then
-            export g_repoUrl="$(cat "${l_targetDir}/REPO_URL")"
+        if [ -f "${g_fileCache}/REPO_URL" ]; then
+            export g_repoUrl="$(cat "${g_fileCache}/REPO_URL")"
         else
-            export g_repoUrl="$(GetSourceRepoUrl)"
+            if [ -d "$g_aidlFileCache" ] && [ "$(ls -A "$g_aidlFileCache")" ]; then
+                export g_repoUrl="OFFLINE_MODE"
+            else
+                export g_repoUrl="$(GetSourceRepoUrl)"
+            fi
         fi
     fi
     [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was not provided and could not automatically be retrieved in Init"
@@ -37,8 +42,6 @@ DownloadSourceFiles () {
     [ -n "$l_targetDir" ] || Exit 1 "Target directory was not provided in DownloadSourceFiles"
     [ -n "$g_repoUrl" ] || Exit 1 "Android source code repository URL was empty in DownloadSourceFiles (Did you call Init first?)"
 
-    l_targetDir="${l_targetDir}/$(GetRomName)"
-
     while IFS= read -r aidlFile; do
         l_currentFile="${l_targetDir}/${aidlFile}"
         if ! [ -f "$l_currentFile" ]; then
@@ -49,7 +52,7 @@ DownloadSourceFiles () {
             echo "Skipping '${aidlFile}' (already exists)"
         fi
     done <<< "$l_sourceFileList"
-    echo "$g_repoUrl" > "${l_targetDir}/REPO_URL"
+    echo "$g_repoUrl" > "${g_fileCache}/REPO_URL"
 }
 
 ###
@@ -230,8 +233,8 @@ GetMethodSignaturesForPackage () {
     l_packageFilePath="$(echo "$l_packageName" | tr '.' '/')\.aidl"
     l_servicePath="$(echo "$g_aidlFileList" | grep -m 1 "$l_packageFilePath\$")"
 
-    if [ -f "$l_servicePath" ]; then
-        l_serviceSource="$(cat "${g_cacheDir}/${l_servicePath}")"
+    if [ -f "${g_aidlFileCache}/${l_servicePath}" ]; then
+        l_serviceSource="$(cat "${g_aidlFileCache}/${l_servicePath}")"
     else
         l_serviceSource="$(GetSourceFile "$l_servicePath")"
     fi
@@ -320,6 +323,13 @@ GetServiceAidlFileNames () {
     l_branch="$(echo "$g_repoUrl" | cut -d'/' -f 6)"
     # build github api to list all files in a branch
     l_recursiveFileTreeUrl="https://api.github.com/repos/${l_githubUser}/${l_githubProject}/git/trees/${l_branch}?recursive=1"
+
+
+    if [ -d "$g_aidlFileCache" ] && [ "$(ls -A "$g_aidlFileCache")" ]; then
+        find "$g_aidlFileCache" -type f -printf "%P\n" | sort -u
+        return
+    fi
+
     # Extract all .aidl file paths from the recursive file tree:
     curl -s "${l_recursiveFileTreeUrl}" | jq -r '.tree|map(.path|select(test("\\.aidl")))[]' | sort -u
 }

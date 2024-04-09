@@ -1,6 +1,6 @@
 {
   "name": "android-svc",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "homepage": "https://github.com/T-vK/android-svc/",
   "maintainer": "@T-vK",
   "description": "Easy to use Android service wrapper",
