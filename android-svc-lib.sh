@@ -3,7 +3,7 @@ export g_repoUrl=""
 export g_aidlFileList=""
 export g_shellType=""
 export g_adbSerial=""
-export g_fileCache="./.android-svc-cache"
+export g_fileCache="${HOME}/.android-svc-cache"
 
 export g_blue=$(printf '%s\n' '\033[0;34m' | sed -e 's/[\/&]/\\&/g')
 export g_red=$(printf '%s\n' '\033[0;31m' | sed -e 's/[\/&]/\\&/g')
